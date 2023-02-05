@@ -1,0 +1,46 @@
+ARG PHP_VER
+FROM php:${PHP_VER:-8.0}-apache-buster
+ARG USER_ID
+ENV USER_ID=$USER_ID
+ARG USER_GID
+ENV USER_GID=$USER_GID
+ARG TZ=Europe/Moscow
+ENV TZ=$TZ
+     COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
+     RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install bash git autoconf cron fonts-freefont-ttf  libpq-dev libfreetype6-dev libfreetype6 graphviz build-essential zip unzip default-mysql-client
+     RUN install-php-extensions bcmath exif ffi gettext gmp igbinary imap intl ldap mbstring \
+         mysqli opcache pdo pdo_mysql pcntl pgsql pdo_pgsql pcov soap sqlite3 swoole redis readline xml zip memcache sockets gd xdebug-3.1.1 zlib
+     RUN a2enmod * -q || true && \
+          a2dismod dav_fs dav dav_lock -q || true
+     RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          nginx cron mc supervisor wget net-tools
+     COPY entrypoint.sh /entrypoint.sh
+     RUN  ln -f -s /usr/share/zoneinfo/$TZ /etc/localtime && \
+          groupmod --gid $USER_GID www-data  && \
+          usermod --uid $USER_ID www-data && \
+          mkdir -p /var/www/html/bx-site && \
+          chown www-data:www-data /var/www/html/bx-site && \
+          mkdir -p /home/bitrix/.bx_temp/sitemanager && \
+          chmod -R 777 /home/bitrix/.bx_temp/sitemanager && \
+          mkdir -p /tmp/session && \
+          chown www-data:www-data /tmp/session && \
+          mkdir -p /var/lib/php/session && \
+          chown www-data:www-data /var/lib/php/session && \
+          mkdir -p /tmp/php_upload && \
+          chmod -R 777 /tmp/php_upload && \
+          chmod +x /entrypoint.sh && \
+          curl -o /var/www/html/bx-site/bitrixsetup.php -L http://www.1c-bitrix.ru/download/scripts/bitrixsetup.php && \
+          curl -o /var/www/html/bx-site/restore.php -L https://www.1c-bitrix.ru/download/files/scripts/restore.php && \
+          chown -R www-data:www-data /var/www/html/bx-site && \
+          rm -f /etc/nginx/sites-enabled/* && \
+          rm -f /etc/nginx/sites-available/*
+
+     COPY ./cron/bitrix /etc/cron.d/bitrix
+     COPY ./php.d/config/zx-bitrix.ini /usr/local/etc/php/conf.d/zx-bitrix.ini
+     COPY ./php.d/config/10-opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
+     COPY ./httpd/config/conf.d/default.conf /etc/apache2/sites-enabled/000-default.conf
+     COPY ./httpd/config/conf/ports.conf /etc/apache2/ports.conf
+     COPY ./nginx/config/nginx.conf /etc/nginx/nginx.conf
+     COPY ./nginx/config/sites-available /etc/nginx/sites-available
+     COPY ./nginx/config/conf.d /etc/nginx/conf.d
+     COPY ./supervisor/supervisord.ini /etc/supervisor/conf.d/supervisor.conf

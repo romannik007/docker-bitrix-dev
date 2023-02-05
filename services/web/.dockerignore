@@ -1,0 +1,7 @@
+volumes/*
+**/logs
+**/*.log
+.git
+docker-bitrix-new
+
+

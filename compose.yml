@@ -1,0 +1,184 @@
+version: '3.9'
+x-php-config: &php-config
+      build:
+        context: ./services/web
+        dockerfile: dockerfile
+        args: 
+          USER_ID: ${USER_ID:-1000}
+          USER_GID: ${USER_GID:-1000}
+          PHP_VER: ${PHP_VER:-8.0}
+      #ports:
+        #- 8088:80
+        #- 8893-8895:8893-8895/tcp
+        #- 443:443
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+      networks:
+        - bitrix
+#          ipv4_address: 172.16.16.4
+      depends_on:
+        - mysql
+        - push_pub
+        - push_sub
+      volumes:
+        - ${LOGS_PATH:-./services}/web/logs/xdebug:/var/log/xdebug
+        - ${LOGS_PATH:-./services}/web/logs/php:/var/log/php
+        - ${LOGS_PATH:-./services}/web/logs/crond:/var/log/crond
+        - ${LOGS_PATH:-./services}/web/logs/nginx:/var/log/nginx
+        #- ./services/web/httpd/config/conf.modules.d/00-mpm.conf:/etc/apache2/conf.modules.d/00-mpm.conf
+      environment:
+        USER_ID: ${USER_ID:-1000}
+        USER_GID: ${USER_GID:-1000}
+
+x-push: &push-config
+      volumes:
+        - ${LOGS_PATH:-./services}/push/logs/:/var/log/push-server/
+        - ./services/push/push-server-multi:/etc/sysconfig/push-server-multi
+      networks:
+        - bitrix
+#          ipv4_address: 172.16.16.4
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+      depends_on:
+        - redis
+
+services:
+    xtrabackup:
+      image: perconalab/percona-xtrabackup:2.4
+      profiles: 
+        - xtrabackup
+      volumes:
+        - ./volumes/mysql/:/var/lib/mysql/
+        
+        - ./volumes/tmp/backup/:/backup/
+      command: ["/usr/bin/xtrabackup -H192.168.33.222 -P3306 -u root -p**Admin** --backup --datadir=/var/lib/mysql/ --target-dir=/backup"]
+      
+    
+    mysql:
+      build:
+        context: ./services/mysql
+        dockerfile: Dockerfile
+        args: 
+          USER_ID: ${USER_ID:-1000}
+          USER_GID: ${USER_GID:-1000}
+          MYSQL_IMAGE: ${MYSQL_IMAGE:-mysql:8.0}
+      #container_name: bx-mysql
+      user: ${USER_ID:-1000}:${USER_GID:-1000}
+      hostname: mysql
+      healthcheck:
+        test: "/usr/bin/mysql --user=root --password=${MYSQL_ROOT_PASSWORD:-**Admin**} --execute \"SHOW DATABASES;\""
+        interval: 2s
+        timeout: 20s
+        retries: 10
+      networks:
+        - bitrix
+      ports:
+        - "3306:3306"
+      environment:
+        MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-**Admin**}
+        MYSQL_DATABASE: ${MYSQL_DATABASE:-sitemanager}
+        MYSQL_USER: ${MYSQL_USER:-bitrix}
+        MYSQL_PASSWORD: ${MYSQL_PASSWORD:-**bitrix**}
+        XTRABACKUP_PASSWORD: ${XTRABACKUP_PASSWORD:-xpassword}
+        MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD:-1}
+        CLUSTER_JOIN: ${CLUSTER_JOIN:-}
+        CLUSTER_NAME: ${CLUSTER_NAME:-bitrix-cluster}
+        TZ: ${TZ:-Europe/Moscow}
+      command: ${MYSQL_COMMAND}
+    
+    web:
+      <<: *php-config
+      entrypoint: /entrypoint.sh
+      #entrypoint: top
+
+    proxy:
+      image: nginx:alpine
+      depends_on:
+        - web
+      volumes:
+        - ./services/web/nginx/proxy/nginx.conf:/etc/nginx/templates/default.conf.template     
+        - ./services/web/nginx/proxy/maps.conf:/etc/nginx/conf.d/maps.conf
+        - ./services/web/nginx/proxy/upstreams.conf:/etc/nginx/conf.d/upstreams.conf
+        # ./services/web/nginx/proxy/im_subscrider.conf:/etc/nginx/conf.d/im_subscrider.conf
+        - ./services/web/nginx/proxy/ssl:/etc/nginx/ssl
+      environment:
+        BITRIX_PORT: ${BITRIX_PORT:-80}
+        BITRIX_SSL_PORT: ${BITRIX_SSL_PORT:-443}
+        DOMAIN: ${HOST:-bitrix1.home.loc}
+      ports:
+        - ${BITRIX_PORT:-80}:80
+        - ${BITRIX_SSL_PORT:-443}:443
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+      networks:
+        - bitrix
+    redis:
+      build: 
+        context: ./services/redis
+        dockerfile: dockerfile
+      networks:
+        - bitrix
+      volumes:
+        #- redis-sock:/tmp/
+        #- ./services/tmp/:/tmp/
+        - ./services/redis/config/redis.conf:/usr/local/etc/redis/redis.conf 
+    
+    push_pub:
+      <<: *push-config
+      build:
+        context: ./services/push/
+        dockerfile: ./dockerfile
+        target: install
+        args: 
+          TZ: ${TZ:-Europe/Moscow}
+          NODE_VERSION: ${NODE_VERSION:-16}
+          REDIS_SOCK: ${REDIS_SOCK:-redis\://redis\:6379}
+          WS_HOST: ${WS_HOST:-push_pub}
+      environment:
+        REDIS_SOCK: ${REDIS_SOCK:-redis\://redis\:6379}
+        WS_HOST: ${WS_HOST:-push_pub}
+      command: ["node", "/opt/push-server/server.js", "--config", "/etc/push-server/push-server-pub-9010.json"]
+    
+    push_sub:
+      <<: *push-config
+      build:
+        context: ./services/push/
+        dockerfile: ./dockerfile
+        target: install
+        args: 
+          TZ: ${TZ:-Europe/Moscow}
+          NODE_VERSION: ${NODE_VERSION:-16}
+          REDIS_SOCK: ${REDIS_SOCK:-redis\://redis\:6379}
+          WS_HOST: ${WS_HOST:-push_sub}
+      environment:
+        REDIS_SOCK: ${REDIS_SOCK:-redis\://redis\:6379}
+        WS_HOST: ${WS_HOST:-push_sub}
+      command: ["node", "/opt/push-server/server.js", "--config", "/etc/push-server/push-server-sub-8010.json"]
+    
+    phpmyadmin:
+      image: phpmyadmin/phpmyadmin:latest
+      ports:
+        - 33333:80
+      networks:
+        - bitrix
+      environment:
+ #      PMA_ARBITRARY: 1
+        PMA_HOST: mysql
+        PMA_PORT: 3306
+        PMA_USER: root
+        PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-**Admin**}
+#       PMA_ABSOLUTE_URI: /phpmyadmin
+  
+
+volumes: 
+  redis-sock:      
+    
+
+networks:
+  bitrix:
+#    name: bitrix_net
+#    ipam:
+#      config:
+#        - subnet: 172.16.16.0/24
+
+    
