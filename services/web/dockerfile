@@ -12,8 +12,10 @@ ENV TZ=$TZ
          mysqli opcache pdo pdo_mysql pcntl pgsql pdo_pgsql pcov soap sqlite3 swoole redis readline xml zip memcache sockets gd xdebug-3.1.1 zlib
      RUN a2enmod * -q || true && \
           a2dismod dav_fs dav dav_lock -q || true
-     RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-          nginx cron mc supervisor wget net-tools
+ARG NODE_WEB
+     RUN curl -sL https://deb.nodesource.com/setup_${NODE_WEB}.x | bash - && \
+          apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          nginx cron mc supervisor wget net-tools nodejs
      COPY entrypoint.sh /entrypoint.sh
      RUN  ln -f -s /usr/share/zoneinfo/$TZ /etc/localtime && \
           groupmod --gid $USER_GID www-data  && \
