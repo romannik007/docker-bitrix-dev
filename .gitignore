@@ -13,4 +13,4 @@
 tmp.Dockerfile
 .git
 .env
-compose*.yml
+/compose*.yml
