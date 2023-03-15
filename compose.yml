@@ -27,6 +27,8 @@ x-php-config: &php-config
         - ${LOGS_PATH:-./services}/web/logs/php:/var/log/php
         - ${LOGS_PATH:-./services}/web/logs/crond:/var/log/crond
         - ${LOGS_PATH:-./services}/web/logs/nginx:/var/log/nginx
+        - ${LOGS_PATH:-./services}/web/logs/httpd:/var/log/apache2
+        - ./services/web/supervisor/supervisord.ini:/etc/supervisor/conf.d/supervisor.conf
         #- ./services/web/httpd/config/conf.modules.d/00-mpm.conf:/etc/apache2/conf.modules.d/00-mpm.conf
       environment:
         USER_ID: ${USER_ID:-1000}

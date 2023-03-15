@@ -1,21 +1,32 @@
-ARG PHP_VER
-FROM php:${PHP_VER:-8.0}-apache-buster
+FROM debian:buster as build
 ARG USER_ID
 ENV USER_ID=$USER_ID
 ARG USER_GID
 ENV USER_GID=$USER_GID
 ARG TZ=Europe/Moscow
-ENV TZ=$TZ
-     COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
-     RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install bash git autoconf cron fonts-freefont-ttf  libpq-dev libfreetype6-dev libfreetype6 graphviz build-essential zip unzip default-mysql-client zsh
-     RUN install-php-extensions bcmath exif ffi gettext gmp igbinary imap intl ldap mbstring \
-         mysqli opcache pdo pdo_mysql pcntl pgsql pdo_pgsql pcov soap sqlite3 swoole redis readline xml zip memcache sockets gd xdebug-3.1.1 zlib xhprof
+ARG PHP_VER=${PHP_VER:-8.0}
+ENV DEBIAN_FRONTEND noninteractive
+     RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+     RUN apt-get update && apt-get install -y gnupg ca-certificates lsb-release && \
+          echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list && \
+          apt-key adv --fetch-keys 'https://packages.sury.org/php/apt.gpg' && apt-get update && \
+          apt-get install -y git autoconf cron fonts-freefont-ttf  libpq-dev \
+          libfreetype6-dev libfreetype6 graphviz build-essential zip unzip default-mysql-client curl zsh
+     RUN apt-get install -y apache2 libapache2-mod-php${PHP_VER} \
+          php${PHP_VER}-cli php${PHP_VER}-bcmath php${PHP_VER}-exif \
+          php${PHP_VER}-gd php${PHP_VER}-gettext  php${PHP_VER}-gmp php${PHP_VER}-igbinary php${PHP_VER}-imap php${PHP_VER}-intl  \
+          php${PHP_VER}-ldap php${PHP_VER}-mbstring php${PHP_VER}-mysqli php${PHP_VER}-opcache php${PHP_VER}-pdo  \
+          php${PHP_VER}-soap php${PHP_VER}-mysqlnd php${PHP_VER}-sqlite3 \
+          php${PHP_VER}-swoole php${PHP_VER}-redis php${PHP_VER}-readline \ 
+          php${PHP_VER}-xml php${PHP_VER}-zip php${PHP_VER}-readline php${PHP_VER}-pgsql php${PHP_VER}-xhprof php${PHP_VER}-xdebug
      RUN a2enmod * -q || true && \
           a2dismod dav_fs dav dav_lock -q || true
 ARG NODE_WEB
-     RUN curl -sL https://deb.nodesource.com/setup_${NODE_WEB}.x | bash - && \
+     RUN  php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/bin/ --filename=composer && \
+          curl -sL https://deb.nodesource.com/setup_${NODE_WEB}.x | bash - && \
           apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
           nginx cron mc supervisor wget net-tools nodejs && \
+          npm install -g n && \
           sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)" "" --skip-chsh
      COPY entrypoint.sh /entrypoint.sh
      RUN  ln -f -s /usr/share/zoneinfo/$TZ /etc/localtime && \
@@ -39,8 +50,10 @@ ARG NODE_WEB
           rm -f /etc/nginx/sites-available/*
 
      COPY ./cron/bitrix /etc/cron.d/bitrix
-     COPY ./php.d/config/zx-bitrix.ini /usr/local/etc/php/conf.d/zx-bitrix.ini
-     COPY ./php.d/config/10-opcache.ini /usr/local/etc/php/conf.d/10-opcache.ini
+     COPY ./php.d/config/zx-bitrix.ini /etc/php/${PHP_VER:-8.2}/fpm/conf.d/zx-bitrix.ini
+     COPY ./php.d/config/zx-bitrix.ini /etc/php/${PHP_VER:-8.2}/cli/conf.d/zx-bitrix.ini
+     COPY ./php.d/config/zx-bitrix.ini /etc/php/${PHP_VER:-8.2}/apache2/conf.d/zx-bitrix.ini
+     COPY ./php.d/config/10-opcache.ini /etc/php/${PHP_VER:-8.2}/cli/conf.d/10-opcache.ini
      COPY ./httpd/config/conf.d/default.conf /etc/apache2/sites-enabled/000-default.conf
      COPY ./httpd/config/conf/ports.conf /etc/apache2/ports.conf
      COPY ./nginx/config/nginx.conf /etc/nginx/nginx.conf
