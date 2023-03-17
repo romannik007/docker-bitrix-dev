@@ -14,3 +14,4 @@ tmp.Dockerfile
 .git
 .env
 compose*.yml
+/user
