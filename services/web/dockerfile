@@ -18,9 +18,9 @@ ENV DEBIAN_FRONTEND noninteractive
           php${PHP_VER}-ldap php${PHP_VER}-mbstring php${PHP_VER}-mysqli php${PHP_VER}-opcache php${PHP_VER}-pdo  \
           php${PHP_VER}-soap php${PHP_VER}-mysqlnd php${PHP_VER}-sqlite3 \
           php${PHP_VER}-swoole php${PHP_VER}-redis php${PHP_VER}-readline \ 
-          php${PHP_VER}-xml php${PHP_VER}-zip php${PHP_VER}-readline php${PHP_VER}-pgsql php${PHP_VER}-xhprof php${PHP_VER}-xdebug
-     RUN a2enmod * -q || true && \
-          a2dismod dav_fs dav dav_lock -q || true
+          php${PHP_VER}-xml php${PHP_VER}-zip php${PHP_VER}-readline php${PHP_VER}-pgsql php${PHP_VER}-xhprof php${PHP_VER}-xdebug \
+          php${PHP_VER}-sockets 
+     RUN cd /etc/apache2/mods-available/ && a2enmod *; a2dismod dav_fs dav dav_lock mpm_worker
 ARG NODE_WEB
      RUN  php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/bin/ --filename=composer && \
           curl -sL https://deb.nodesource.com/setup_${NODE_WEB}.x | bash - && \

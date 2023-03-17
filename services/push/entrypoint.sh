@@ -29,6 +29,8 @@ chmod -R 777 /var/log
 
 #/etc/init.d/push-server-multi reset
 #/etc/init.d/push-server-multi stop
-/etc/init.d/push-server-multi update_configs
+/usr/local/bin/push-server-multi configs pub
+/usr/local/bin/push-server-multi configs sub
+
 exec /usr/bin/supervisord # -c /etc/supervisor.d/supervisord.conf
 
