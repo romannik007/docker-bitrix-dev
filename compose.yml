@@ -101,6 +101,7 @@ services:
 
     
     web:
+      working_dir: /var/www
       <<: *php-config
       entrypoint: /entrypoint.sh
       #entrypoint: top
