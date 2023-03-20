@@ -43,7 +43,8 @@ x-php-config: &php-config
         APACHE_RUN_DIR: /var/run/apache2
         APACHE_LOCK_DIR: /var/lock/apache2
         APACHE_LOG_DIR: /var/log/apache2
-        XHPROF_ENABLE: ${XHPROF_ENABLE:-1}
+        XHPROF_ENABLE: ${XHPROF_ENABLE:-0}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
 
 x-push: &push-config
       volumes:

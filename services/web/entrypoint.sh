@@ -24,4 +24,10 @@ fi
 if [ $XHPROF_ENABLE == "1" ]; then
     phpdenmod xhprof
 fi
+if [ $XDEBUG_ENABLE == "0" ]; then
+    phpdismod xdebug
+fi
+if [ $XDEBUG_ENABLE == "1" ]; then
+    phpdenmod xdebug
+fi
 exec /usr/bin/supervisord
