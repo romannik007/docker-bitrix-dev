@@ -73,7 +73,7 @@ sudo sysctl -p /etc/sysctl.d /etc/sysctl.d/90-max_net_namespaces.conf
 
       ***'signature_key' => 'bVQdNsrRsulOnj9lkI0sPim292jMtrnji0zzEl5MzCBeHT7w1E5HL3aihFb6aiFJfNEIDxmcFrowS3PTLZFDxAfuNNuCN5EcFRaveaUaRZHSThtWKV7Vp5vGbz9kb3cN'***
 
-      ***'path_to_publish' => 'http://nginx:8895/bitrix/pub/'***
+      ***'path_to_publish' => 'http://web:8895/bitrix/pub/'***
 
       пример .settings.php в папке services/bitrix-set/
       
