@@ -59,7 +59,7 @@ sudo sysctl -p /etc/sysctl.d /etc/sysctl.d/90-max_net_namespaces.conf
 
 
 
-2. deleted
+2. размещаем в user/ папку .ssh для использования ssh ключей. Ключи пробрасываются пользователю www-data в домашнюю папку /var/www
 3. deleted
 
 4. ***`docker-compose up -d --build`***

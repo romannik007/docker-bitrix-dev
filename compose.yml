@@ -27,10 +27,24 @@ x-php-config: &php-config
         - ${LOGS_PATH:-./services}/web/logs/php:/var/log/php
         - ${LOGS_PATH:-./services}/web/logs/crond:/var/log/crond
         - ${LOGS_PATH:-./services}/web/logs/nginx:/var/log/nginx
+        - ${LOGS_PATH:-./services}/web/logs/httpd:/var/log/apache2
+        - ${LOGS_PATH:-./services}/web/logs/xhprof:/var/log/xhprof
+        - ./services/web/supervisor/supervisord.ini:/etc/supervisor/conf.d/supervisor.conf
+        - ./user:/user
+        - ./services/web/entrypoint.sh:/entrypoint.sh
         #- ./services/web/httpd/config/conf.modules.d/00-mpm.conf:/etc/apache2/conf.modules.d/00-mpm.conf
       environment:
         USER_ID: ${USER_ID:-1000}
         USER_GID: ${USER_GID:-1000}
+        PHP_VER: ${PHP_VER:-8.0}
+        APACHE_RUN_USER: www-data
+        APACHE_RUN_GROUP: www-data
+        APACHE_PID_FILE: /var/run/apache2/apache2.pid
+        APACHE_RUN_DIR: /var/run/apache2
+        APACHE_LOCK_DIR: /var/lock/apache2
+        APACHE_LOG_DIR: /var/log/apache2
+        XHPROF_ENABLE: ${XHPROF_ENABLE:-0}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
 
 x-push: &push-config
       volumes:
@@ -92,6 +106,7 @@ services:
 
     
     web:
+      working_dir: /var/www
       <<: *php-config
       entrypoint: /entrypoint.sh
       #entrypoint: top
@@ -143,6 +158,7 @@ services:
         REDIS_SOCK: ${REDIS_SOCK:-redis\://redis\:6379}
         WS_HOST: ${WS_HOST:-push_pub}
       command: ["node", "/opt/push-server/server.js", "--config", "/etc/push-server/push-server-pub-9010.json"]
+
     
     push_sub:
       <<: *push-config
